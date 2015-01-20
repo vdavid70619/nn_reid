@@ -3,15 +3,18 @@
 -- 2014.05
 --
 --
+require("mobdebug").start()
 
+require 'torch'
 
 torch.setdefaulttensortype('torch.DoubleTensor')
 
+require 'paths'
 require 'nn'
 require 'nnx'
 require 'image'
 require 'optim'
-require 'pairloader' 
+require 'dataloader' 
    
 torch.setnumthreads(8)
 
@@ -70,30 +73,14 @@ end
 -- Load Data
 -----------------------------------------------------------------------------------------
 
-local trainData = PairData{dataSetFolder='/Users/xiyangdai/Downloads/lfw/',
-                           sampleSize={ch,50,50},
-                           channels=ch,
-                           nbSamplesRequired=10000}
-
-
-
-matchData1, dismatchData1 = trainData:popSubset{overall=false,ratio=0.2}
-
-trainData:display(100,'ha')
---matchData1:display(20,'match')
---dismatchData1:display(20,'mismatch')
-
-
-local trains = nn.DataList()
-trains:appendDataSet(trainData:MatchSet(),'Match')
-trains:appendDataSet(trainData:DismatchSet(),'Dismatch')
-trains:shuffle()
-
--- testing set
-local tests = nn.DataList()
-tests:appendDataSet(matchData1,'Match')
-tests:appendDataSet(dismatchData1,'Dismatch')
-tests:shuffle()
+local dl = Dataloader()
+dl:load_from_folder('data')
+dl:rgb2grey()
+dl:resize(50,50)
+dl:shuffle()
+trains, tests = dl:train_test_split(0.5, 'inter')
+ptrains = dl.generate_pairs(trains)
+ptests = dl.generate_pairs(tests)
 
 -- this matrix records the current confusion across classes
 local confusion = optim.ConfusionMatrix{'Match','Dismatch'}
@@ -136,17 +123,17 @@ function train(dataset)
 
    win = image.display{image=network:getWeights().layer1, padding=2, zoom=4, win=win}
 
-   for iSample = 1,dataset:size() do
+   for iSample = 1,dataset.size do
 
-      xlua.progress(iSample, dataset:size())
+      xlua.progress(iSample, dataset.size)
 
-      local input = dataset[iSample][1]      
-      local target = dataset[iSample][2]
-
-      if target[1]==-1 then target=2
+      local input = {dataset[iSample][1], dataset[iSample][2]}
+      local target = dataset[iSample][3]
+      
+      -- stupid criterion def
+      if target==0 then target=2
       else target=1
-      end  
-
+      end 
 
       -- create closure to evaluate f(X) and df/dX
       local feval = function(x)
@@ -182,7 +169,7 @@ function train(dataset)
 
    -- time taken
    time = sys.clock() - time
-   time = time / dataset:size()
+   time = time / dataset.size
    print("<trainer> time to learn 1 sample = " .. (time*1000) .. 'ms')
 
    -- print confusion matrix
@@ -192,8 +179,8 @@ function train(dataset)
 
    -- save/log current net
    local filename = fname:gsub('.lua','') .. '/face_vertify_'..date..'.param'
-   os.execute('mkdir -p ' .. sys.dirname(filename))
-   if sys.filep(filename) then
+   os.execute('mkdir -p ' .. paths.dirname(filename))
+   if paths.filep(filename) then
       os.execute('mv ' .. filename .. ' ' .. filename .. '.old')
    end
    print('<trainer> saving parameters to '..filename)
@@ -210,18 +197,19 @@ function test(dataset)
 
    -- test over given dataset
    print('<trainer> on testing Set:')
-   for t = 1,dataset:size() do
+   for t = 1,dataset.size do
       -- disp progress
-      xlua.progress(t, dataset:size())
+      xlua.progress(t, dataset.size)
 
       -- get new sample
       local sample = dataset[t]
-      local input = sample[1]
-      local target = sample[2]
+      local input = {sample[1], sample[2]}
+      local target = sample[3]
 
-      if target[1]==-1 then target=2
+      -- stupid criterion def
+      if target==0 then target=2
       else target=1
-      end  
+      end 
 
       -- test sample
       confusion:add(network:forward(input), target)
@@ -229,7 +217,7 @@ function test(dataset)
 
    -- timing
    time = sys.clock() - time
-   time = time / dataset:size()
+   time = time / dataset.size
    print("<trainer> time to test 1 sample = " .. (time*1000) .. 'ms')
 
    -- print confusion matrix
@@ -247,8 +235,8 @@ end
 
 while iEpoch<learningp.nEpochs do
    -- train/test
-   train(trains)
-   test(tests)
+   train(ptrains)
+   test(ptests)
 
    -- plot errors
    --trainLogger:style{['% mean class accuracy (train set)'] = '-'}
