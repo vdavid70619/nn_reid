@@ -1,6 +1,6 @@
 --[[
 	Re-id dataloader for torch
-	Xiyang Dai @ 2014.8
+	Xiyang Dai @ 2015.1
 ]]--
 
 
@@ -32,19 +32,37 @@ function dataloader:name2id(name, ...)
 	return id
 end
 
-function dataloader:load_from_folder(dname)
+function dataloader:load_from_folder(dname, nimage)
+	math.inf = 1/0
+	nimage = nimage or math.inf
 	local dirs = paths.dir(dname)
 
 	for _, dir_path in pairs(dirs) do
 		print(dir_path)
 		if(paths.dirp(dname..'/'..dir_path) and dir_path~='.' and dir_path~='..') then 
 			local images = paths.dir(dname..'/'..dir_path)
+			local nt = nimage
+			if nt<math.inf then
+		   		local n = #images
+
+			   	while n > 2 do
+			      	local k = math.random(n)
+			      	-- swap elements
+			      	images[n], images[k] = images[k], images[n]
+			      	n = n - 1
+			   	end				
+			end
+
 			for _, im_path in pairs(images) do
-				if(string.find(im_path, '.jpg')) then
+				if(string.find(im_path, '.jpg') or string.find(im_path, '.png')) then
+					if nt<=0 then break end
+
 					print(im_path)
 					id = self:name2id(dir_path)
 					im = image.load(dname..'/'..dir_path..'/'..im_path)
 					self:insert_new_view(id, im)
+
+					nt = nt - 1
 				end
 			end
 		end

@@ -1,6 +1,6 @@
 --
 -- Xiyang Dai
--- 2014.05
+-- 2015.1
 --
 --
 require("mobdebug").start()
@@ -23,7 +23,7 @@ torch.setnumthreads(8)
 -- Build two same parallel CNN
 -- {1,8,5,5,46,46}
 -----------------------------------------------------------------------------------------
-local ch = 1   
+local ch = 3
    
 
 network = nn.Sequential()
@@ -37,11 +37,11 @@ filter1:add(nn.SpatialContrastiveNormalization(ch, image.gaussian1D(7)))
 --filter1:add(nn.SpatialPadding(-datap.lWin, -datap.tWin, -datap.rWin, -datap.bWin))
 local filters_elem = {}
 
-table.insert(filters_elem, nn.SpatialConvolution(ch,4,5,5))
-table.insert(filters_elem, nn.Tanh())
-table.insert(filters_elem, nn.SpatialSubSampling(4,2,2,2,2))
-table.insert(filters_elem, nn.SpatialConvolution(4,16,7,7))
-table.insert(filters_elem, nn.Tanh())
+table.insert(filters_elem, nn.SpatialConvolution(ch,8,5,5))
+table.insert(filters_elem, nn.ReLU())
+table.insert(filters_elem, nn.SpatialSubSampling(8,2,2,2,2))
+table.insert(filters_elem, nn.SpatialConvolution(8,16,7,7))
+table.insert(filters_elem, nn.ReLU())
 
 -- second one (clone first one)
 local filter2 = nn.Sequential()
@@ -53,12 +53,9 @@ for i = 1,#filters_elem do
    filter2:add(filters_elem[i]:clone('weight', 'bias', 'gradWeight', 'gradBias'))
 end
 
-network:add(nn.SpatialMatching(5,5))
-network:add(nn.Reshape(17,17,5*5))
+network:add(nn.SpatialMatching(1,1))
+network:add(nn.Reshape(17,17,1))
 network:add(nn.Min(3))
---network:add(nn.Reshape(1,23,23))
---network:add(nn.SpatialSubSampling(1,5,5,5,5))
---network:add(nn.SpatialLPPooling(1,2,18,18))
 network:add(nn.Reshape(17*17))
 network:add(nn.Linear(17*17,2))
 network:add(nn.LogSoftMax())
@@ -74,11 +71,11 @@ end
 -----------------------------------------------------------------------------------------
 
 local dl = Dataloader()
-dl:load_from_folder('data')
-dl:rgb2grey()
+dl:load_from_folder('../../MATLAB/DATA/i-LIDS-VID/sequences/mix', 30)
+--dl:rgb2grey()
 dl:resize(50,50)
 dl:shuffle()
-trains, tests = dl:train_test_split(0.5, 'inter')
+trains, tests = dl:train_test_split(0.2, 'inter')
 ptrains = dl.generate_pairs(trains)
 ptests = dl.generate_pairs(tests)
 
@@ -110,6 +107,7 @@ parameters, gradParameters = network:getParameters()
 function train(dataset)
 
    local time = sys.clock()
+   local tic = sys.clock()
 
    local  criterion = nn.ClassNLLCriterion()
    --local criterion = nn.MSECriterion()
@@ -124,8 +122,12 @@ function train(dataset)
    win = image.display{image=network:getWeights().layer1, padding=2, zoom=4, win=win}
 
    for iSample = 1,dataset.size do
-
-      xlua.progress(iSample, dataset.size)
+   	  if (10*iSample)%dataset.size==0 then
+   	  	toc = sys.clock()
+   	  	print(10*iSample/dataset.size .. '0% ' .. toc-tic .. 's') 
+   	  	tic = sys.clock()   	  	
+   	  end
+      --xlua.progress(iSample, dataset.size)
 
       local input = {dataset[iSample][1], dataset[iSample][2]}
       local target = dataset[iSample][3]
@@ -194,12 +196,18 @@ end
 function test(dataset)
    -- local vars
    local time = sys.clock()
+   local tic = sys.clock()
 
    -- test over given dataset
    print('<trainer> on testing Set:')
    for t = 1,dataset.size do
       -- disp progress
-      xlua.progress(t, dataset.size)
+   	  if (10*t)%dataset.size==0 then
+   	  	toc = sys.clock()
+   	    print(10*t/dataset.size .. '0% ' .. toc-tic .. 's') 
+   	  	tic = sys.clock()   	  	
+   	  end    
+      --xlua.progress(t, dataset.size)
 
       -- get new sample
       local sample = dataset[t]
