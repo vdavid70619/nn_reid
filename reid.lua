@@ -71,7 +71,7 @@ end
 -----------------------------------------------------------------------------------------
 
 local dl = Dataloader()
-dl:load_from_folder('../../MATLAB/DATA/i-LIDS-VID/sequences/mix', 30)
+dl:load_from_folder('../../MATLAB/DATA/i-LIDS-VID/sequences/mix', '.png', 30)
 --dl:rgb2grey()
 dl:resize(50,50)
 dl:shuffle()
@@ -96,6 +96,7 @@ local learningp = {
    rate = 5e-4,
    weightDecay = 0.01,
    rateDecay = 1e-3,
+   nPecentage = 100
 }
 
 local iEpoch=1
@@ -108,6 +109,7 @@ function train(dataset)
 
    local time = sys.clock()
    local tic = sys.clock()
+   local nper = learningp.nPecentage
 
    local  criterion = nn.ClassNLLCriterion()
    --local criterion = nn.MSECriterion()
@@ -121,16 +123,18 @@ function train(dataset)
 
    win = image.display{image=network:getWeights().layer1, padding=2, zoom=4, win=win}
 
-   for iSample = 1,dataset.size do
-   	  if (10*iSample)%dataset.size==0 then
-   	  	toc = sys.clock()
-   	  	print(10*iSample/dataset.size .. '0% ' .. toc-tic .. 's') 
-   	  	tic = sys.clock()   	  	
-   	  end
-      --xlua.progress(iSample, dataset.size)
 
-      local input = {dataset[iSample][1], dataset[iSample][2]}
-      local target = dataset[iSample][3]
+   for t = 1,dataset.size do
+   	  if (nper*t)%dataset.size==0 then
+   	  	toc = sys.clock()
+   	  	print(nper*t/dataset.size .. '/' .. nper .. ' - ' .. string.format("%.4f",toc-tic) .. 's') 
+   	  	tic = sys.clock()   	  	
+      	collectgarbage()        	  	
+   	  end
+      --xlua.progress(t, dataset.size)
+
+      local input = {dataset[t][1], dataset[t][2]}
+      local target = dataset[t][3]
       
       -- stupid criterion def
       if target==0 then target=2
@@ -164,9 +168,9 @@ function train(dataset)
             network:backward(input, df_do)
                          
             return f, gradParameters
-         end
+      end
 
-         optim.sgd(feval, parameters, config)
+      optim.sgd(feval, parameters, config)
    end
 
    -- time taken
@@ -197,16 +201,18 @@ function test(dataset)
    -- local vars
    local time = sys.clock()
    local tic = sys.clock()
+   local nper = learningp.nPecentage
 
    -- test over given dataset
    print('<trainer> on testing Set:')
    for t = 1,dataset.size do
       -- disp progress
-   	  if (10*t)%dataset.size==0 then
+   	  if (nper*t)%dataset.size==0 then
    	  	toc = sys.clock()
-   	    print(10*t/dataset.size .. '0% ' .. toc-tic .. 's') 
+   	  	print(nper*t/dataset.size .. '/' .. nper .. ' - ' .. string.format("%.4f",toc-tic) .. 's') 
    	  	tic = sys.clock()   	  	
-   	  end    
+      	collectgarbage()        	  	
+   	  end  
       --xlua.progress(t, dataset.size)
 
       -- get new sample
@@ -220,7 +226,8 @@ function test(dataset)
       end 
 
       -- test sample
-      confusion:add(network:forward(input), target)
+      local result = network:forward(input)
+      confusion:add(result, target)
    end
 
    -- timing
@@ -243,7 +250,7 @@ end
 
 while iEpoch<learningp.nEpochs do
    -- train/test
-   train(ptrains)
+   --train(ptrains)
    test(ptests)
 
    -- plot errors

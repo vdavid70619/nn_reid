@@ -32,8 +32,9 @@ function dataloader:name2id(name, ...)
 	return id
 end
 
-function dataloader:load_from_folder(dname, nimage)
+function dataloader:load_from_folder(dname,ftype,nimage)
 	math.inf = 1/0
+	ftype = ftype or '.jpg' 
 	nimage = nimage or math.inf
 	local dirs = paths.dir(dname)
 
@@ -54,7 +55,7 @@ function dataloader:load_from_folder(dname, nimage)
 			end
 
 			for _, im_path in pairs(images) do
-				if(string.find(im_path, '.jpg') or string.find(im_path, '.png')) then
+				if string.find(im_path, ftype)then
 					if nt<=0 then break end
 
 					print(im_path)
