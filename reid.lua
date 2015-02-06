@@ -250,7 +250,7 @@ end
 
 while iEpoch<learningp.nEpochs do
    -- train/test
-   --train(ptrains)
+   train(ptrains)
    test(ptests)
 
    -- plot errors
