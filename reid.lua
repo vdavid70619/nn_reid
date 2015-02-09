@@ -14,6 +14,7 @@ require 'nn'
 require 'nnx'
 require 'image'
 require 'optim'
+
 require 'dataloader' 
    
 torch.setnumthreads(8)
@@ -63,6 +64,7 @@ network:add(nn.LogSoftMax())
 function network:getWeights()
    local weights = {}
    weights.layer1 = self.modules[1].modules[1].modules[2].weight
+   weights.layer2 = self.modules[1].modules[1].modules[5].weight   
    return weights
 end
 
@@ -71,11 +73,11 @@ end
 -----------------------------------------------------------------------------------------
 
 local dl = Dataloader()
-dl:load_from_folder('../../MATLAB/DATA/i-LIDS-VID/sequences/mix', '.png', 30)
+dl:load_from_folder('../../MATLAB/DATA/i-LIDS-VID/sequences/mix', '.png', 50)
 --dl:rgb2grey()
 dl:resize(50,50)
 dl:shuffle()
-trains, tests = dl:train_test_split(0.2, 'inter')
+trains, tests = dl:train_test_split(0.5, 'inter')
 ptrains = dl.generate_pairs(trains)
 ptests = dl.generate_pairs(tests)
 
@@ -88,6 +90,9 @@ local trainLogger = optim.Logger(paths.concat(dname, 'train.log'))
 local testLogger = optim.Logger(paths.concat(dname, 'test.log'))
 
 date = os.date('%y%m%d_%H%M')
+
+
+print(network)
 -----------------------------------------------------------------------------------------
 -- Train!!!
 -----------------------------------------------------------------------------------------
@@ -121,8 +126,9 @@ function train(dataset)
    
    print("Epoch " .. iEpoch .. " of " .. learningp.nEpochs)
 
+   -- visualize
    win = image.display{image=network:getWeights().layer1, padding=2, zoom=4, win=win}
-
+   --win2 = image.display{image=network:getWeights().layer2, padding=2, zoom=4, win=win2}
 
    for t = 1,dataset.size do
    	  if (nper*t)%dataset.size==0 then
