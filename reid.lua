@@ -22,7 +22,7 @@ torch.setnumthreads(8)
 
 -----------------------------------------------------------------------------------------
 -- Build two same parallel CNN
--- {1,8,5,5,46,46}
+-- {3,8,5,5,46,46}
 -----------------------------------------------------------------------------------------
 local ch = 3
    
@@ -68,6 +68,8 @@ function network:getWeights()
    return weights
 end
 
+torch.save("model.net",network)
+
 -----------------------------------------------------------------------------------------
 -- Load Data
 -----------------------------------------------------------------------------------------
@@ -108,7 +110,7 @@ local iEpoch=1
 
 
 parameters, gradParameters = network:getParameters()
---parameters:copy(torch.load('./face_verf/face_vertify_121208_1830.param.old'))
+
 
 function train(dataset)
 
@@ -128,14 +130,13 @@ function train(dataset)
 
    -- visualize
    win = image.display{image=network:getWeights().layer1, padding=2, zoom=4, win=win}
-   --win2 = image.display{image=network:getWeights().layer2, padding=2, zoom=4, win=win2}
 
    for t = 1,dataset.size do
    	  if (nper*t)%dataset.size==0 then
    	  	toc = sys.clock()
    	  	print(nper*t/dataset.size .. '/' .. nper .. ' - ' .. string.format("%.4f",toc-tic) .. 's') 
    	  	tic = sys.clock()   	  	
-      	collectgarbage()        	  	
+      		collectgarbage()        	  	
    	  end
       --xlua.progress(t, dataset.size)
 
@@ -217,7 +218,7 @@ function test(dataset)
    	  	toc = sys.clock()
    	  	print(nper*t/dataset.size .. '/' .. nper .. ' - ' .. string.format("%.4f",toc-tic) .. 's') 
    	  	tic = sys.clock()   	  	
-      	collectgarbage()        	  	
+      		collectgarbage()        	  	
    	  end  
       --xlua.progress(t, dataset.size)
 

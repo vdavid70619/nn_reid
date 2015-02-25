@@ -16,7 +16,7 @@ function dataloader:__init(...)
 	self.data = {}
 end
 
-function dataloader:insert_new_view(id, im)
+function dataloader:insert_new_image(id, im)
 	if self.data[id] then
 		table.insert(self.data[id], im)
 	else
@@ -61,7 +61,7 @@ function dataloader:load_from_folder(dname,ftype,nimage)
 					print(im_path)
 					id = self:name2id(dir_path)
 					im = image.load(dname..'/'..dir_path..'/'..im_path)
-					self:insert_new_view(id, im)
+					self:insert_new_image(id, im)
 
 					nt = nt - 1
 				end
@@ -112,6 +112,21 @@ function dataloader:rgb2grey()
 	end
 end 
 
+function dataloader:fold(fold)
+	train = {}
+	test = {}
+
+	for _, class in pairs(fold[1]) do
+		table.insert(train, class)
+	end
+
+	for _, class in pairs(fold[2]) do
+		table.insert(test, class)
+	end	
+
+	return train, test
+end
+
 function dataloader:train_test_split(ratio, opt)
 	opt = opt or 'inner'
 
@@ -152,16 +167,19 @@ function dataloader:train_test_split(ratio, opt)
 			nt = ratio
 		end
 
+		fold = {'1'={},'2'={}}
 		for class, images in pairs(self.data) do
 			if nt>0 then 
 				train[class] = images
+				table.insert(fold[1], class)
 			else
 				test[class] = images
+				table.insert(fold[2], class)
 			end
 			nt = nt - 1
 		end
 	end
-	return train, test
+	return train, test, fold
 end
 
 function dataloader.generate_pairs(data)
